@@ -11,6 +11,9 @@
       <div class="panel-title">Inventario</div>
 
       <div id="screen-list" class="screen">
+        <div class="grid" id="hotbar-grid"></div>
+        <div class="wheel-hint">Clic o pulsa 1-9 para sacar/usar — arrastra para reordenar</div>
+
         <div class="weight-row">
           <span class="weight-label" id="weight-label">0 / 0 kg</span>
           <div class="weight-track"><div class="weight-fill" id="weight-fill"></div></div>
@@ -42,18 +45,6 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
-  </div>
-
-  <!-- Barra rápida (Tab) — antes mk_weaponwheel, absorbida aquí. Contenedor
-       propio ("hotbar-root", no "root") para no chocar con el panel de
-       arriba: los dos pueden existir en la misma página sin pisarse. -->
-  <div id="hotbar-root" class="hidden">
-    <div class="wheel">
-      <div class="wheel-title">Barra rápida</div>
-      <div class="grid" id="hotbar-grid"></div>
-      <div class="wheel-hint">Clic o pulsa 1-9 para sacar/usar — arrastra para reordenar</div>
-      <div class="wheel-full-btn" id="btn-open-full">Ver inventario completo ▸</div>
-    </div>
   </div>
 
 <script src="app.js"></script>

@@ -3,6 +3,7 @@
 
   const el = (id) => document.getElementById(id);
   const root = el("root");
+  const hotbarGrid = el("hotbar-grid");
   const itemList = el("item-list");
   const emptyHint = el("empty-hint");
   const weightLabel = el("weight-label");
@@ -21,9 +22,21 @@
   };
 
   let currentData = null;
+  let currentSlots = [];
   let activeTab = "items";
   let pendingAction = null; // { kind: "give"|"remove"|"giveAmmo", type, name, cap }
   let toastTimer = null;
+
+  // Arrastre de las 9 casillas rápidas (mousedown/mousemove/mouseup manual —
+  // el drag-and-drop nativo de HTML5 no es fiable en el CEF de FiveM).
+  let dragFrom = null;
+  let pointerDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  // 18px: con 6px (el primer valor) los clics normales de un jugador real
+  // medían 6-7px de temblor y ya contaban como arrastre, así que el clic
+  // nunca sacaba el arma (ver SKILL.md, lección 2026-08-11).
+  const DRAG_THRESHOLD_PX = 18;
 
   function post(endpoint, payload) {
     return fetch(`https://${GetParentResourceName()}/${endpoint}`, {
@@ -269,99 +282,18 @@
     }
   });
 
-  document.addEventListener("keydown", (e) => {
-    if (root.classList.contains("hidden")) return;
-
-    if (e.key === "Escape") {
-      e.preventDefault();
-
-      if (!screens.qty.classList.contains("hidden")) {
-        pendingAction = null;
-        showScreen("list");
-      } else {
-        post("mk_inventory:close", {});
-      }
-      return;
-    }
-
-    if (e.key === "Enter" && !screens.qty.classList.contains("hidden")) {
-      e.preventDefault();
-      el("btn-qty-confirm").click();
-    }
-  });
-
-  window.addEventListener("message", (event) => {
-    const data = event.data || {};
-
-    if (data.action === "open") {
-      currentData = data.data;
-      activeTab = "items";
-      setActiveTab("items");
-      renderWeight();
-      showScreen("list");
-      root.classList.remove("hidden");
-    }
-
-    if (data.action === "refresh") {
-      currentData = data.data;
-      // Si estaba en medio de pedir una cantidad, no lo interrumpimos con
-      // un re-render de la lista — solo se actualizan los datos de fondo.
-      if (screens.list.classList.contains("hidden")) return;
-      renderList();
-      renderWeight();
-    }
-
-    if (data.action === "close") {
-      root.classList.add("hidden");
-      pendingAction = null;
-      showScreen("list");
-    }
-  });
-
   // ============================================================
-  // Barra rápida (Tab) — antes mk_weaponwheel/html/app.js, portado tal cual
-  // (incluidos los fixes de esta sesión: umbral de arrastre 18px, e.repeat
-  // en Tab) salvo: reutiliza post()/escapeHtml() de arriba en vez de
-  // redeclararlos (evitaba pisar el post() del panel, que sí parsea JSON;
-  // el de aquí original solo comprobaba res.ok del Response crudo — con el
-  // post() compartido ahora usa el "ok" real que ya manda cada callback
-  // Lua con cb({ok=true/false}), así que sigue funcionando igual).
+  // Barra rápida — las 9 casillas de arriba del panel
   // ============================================================
-
-  const hotbarRoot = el("hotbar-root");
-  const hotbarGrid = el("hotbar-grid");
-
-  let currentSlots = [];
-  let dragFrom = null;
-  let pointerDragging = false;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  const DRAG_THRESHOLD_PX = 18;
-
-  function dbgHotbar(msg) {
-    post("mk_inventory:hotbarDebug", { msg });
-  }
-
-  // Único punto de entrada al panel completo ahora que no hay tecla F2
-  // propia — se pide desde dentro de la barra rápida, sin soltar el foco
-  // de la NUI (evita el parpadeo de cerrar-y-reabrir SetNuiFocus). Se oculta
-  // la barra rápida al momento (como closeHotbarLocal) en vez de esperar a
-  // que Lua mande "hotbar:close" — el mensaje "open" del panel completo
-  // llega enseguida de todas formas, pero así no hay un frame de las dos
-  // pantallas superpuestas.
-  el("btn-open-full").addEventListener("click", () => {
-    hotbarRoot.classList.add("hidden");
-    post("mk_inventory:hotbarOpenFull", {});
-  });
 
   function drawHotbarSlot(slot) {
     if (!currentSlots[slot - 1]) {
-      dbgHotbar(`draw(${slot}) abortado: currentSlots[${slot - 1}] esta vacio en la copia local de la NUI`);
+      debugLog(`draw(${slot}) abortado: currentSlots[${slot - 1}] esta vacio en la copia local de la NUI`);
       return;
     }
-    dbgHotbar(`draw(${slot}) -> POST mk_inventory:hotbarDraw`);
+    debugLog(`draw(${slot}) -> POST mk_inventory:hotbarDraw`);
     post("mk_inventory:hotbarDraw", { slot }).then((res) => {
-      if (!res || !res.ok) dbgHotbar(`draw(${slot}): la respuesta no fue ok`);
+      if (!res || !res.ok) debugLog(`draw(${slot}): la respuesta no fue ok`);
     });
   }
 
@@ -392,14 +324,11 @@
       const slot = Number(cell.dataset.slot);
 
       cell.addEventListener("click", () => {
-        dbgHotbar(`click en casilla ${slot} (pointerDragging=${pointerDragging})`);
+        debugLog(`click en casilla ${slot} (pointerDragging=${pointerDragging})`);
         if (pointerDragging) return;
         drawHotbarSlot(slot);
       });
 
-      // El drag-and-drop nativo de HTML5 no funciona de forma fiable en el
-      // CEF embebido de FiveM — arrastre manual con mousedown/mousemove/
-      // mouseup en su lugar.
       cell.addEventListener("mousedown", (e) => {
         if (!cell.classList.contains("filled")) return;
         e.preventDefault();
@@ -415,16 +344,12 @@
   document.addEventListener("mousemove", (e) => {
     if (dragFrom === null) return;
 
-    // Umbral de distancia real antes de contar como arrastre — sin esto,
-    // el temblor normal de un clic (6-7px medidos en el juego real, ver
-    // SKILL.md lección 2026-08-11) se confundía con un arrastre y el clic
-    // nunca llegaba a drawHotbarSlot.
     if (!pointerDragging) {
       const dx = e.clientX - dragStartX;
       const dy = e.clientY - dragStartY;
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
       pointerDragging = true;
-      dbgHotbar(`arrastre real detectado desde casilla ${dragFrom} (dist=${Math.hypot(dx, dy).toFixed(1)}px)`);
+      debugLog(`arrastre real detectado desde casilla ${dragFrom} (dist=${Math.hypot(dx, dy).toFixed(1)}px)`);
     }
 
     hotbarGrid.querySelectorAll(".cell").forEach((c) => c.classList.remove("dragover"));
@@ -439,7 +364,7 @@
     if (dragFrom === null) return;
 
     const from = dragFrom;
-    dbgHotbar(`mouseup: soltado desde casilla ${from} (pointerDragging=${pointerDragging})`);
+    debugLog(`mouseup: soltado desde casilla ${from} (pointerDragging=${pointerDragging})`);
     dragFrom = null;
     hotbarGrid.querySelectorAll(".cell").forEach((c) => c.classList.remove("dragging", "dragover"));
 
@@ -460,49 +385,78 @@
     setTimeout(() => { pointerDragging = false; }, 0);
   });
 
-  function closeHotbarLocal() {
-    hotbarRoot.classList.add("hidden");
-    post("mk_inventory:hotbarClose", {});
-  }
+  // ============================================================
+  // Teclado: ESC cierra, 1-9 sacan/usan la casilla correspondiente
+  // ============================================================
 
   document.addEventListener("keydown", (e) => {
-    if (hotbarRoot.classList.contains("hidden")) return;
+    if (root.classList.contains("hidden")) return;
 
     if (e.key === "Escape") {
       e.preventDefault();
-      dbgHotbar("Escape -> closeHotbarLocal()");
-      closeHotbarLocal();
+
+      if (!screens.qty.classList.contains("hidden")) {
+        pendingAction = null;
+        showScreen("list");
+      } else {
+        post("mk_inventory:close", {});
+      }
       return;
     }
 
-    // Tab abre el hotbar (RegisterKeyMapping en client/main.lua), pero ese
-    // control de juego no llega mientras la NUI tiene el foco — "Tab para
-    // cerrar otra vez" hay que capturarlo aquí. e.repeat evita que
-    // mantenerlo pulsado (hábito viniendo de la ruleta nativa de GTA, que
-    // sí es "mantener") lo cierre solo antes de poder hacer clic en nada.
-    if (e.key === "Tab") {
+    if (e.key === "Enter" && !screens.qty.classList.contains("hidden")) {
       e.preventDefault();
-      if (e.repeat) return;
-      dbgHotbar("Tab (repeat=false) -> closeHotbarLocal()");
-      closeHotbarLocal();
+      el("btn-qty-confirm").click();
       return;
     }
 
-    // El 1-9 para sacar arma se detecta en Lua con IsDisabledControlJustPressed,
-    // no aquí (ver client/main.lua) — más fiable en este CEF.
+    // 1-9 para sacar arma/usar item de la casilla correspondiente. Antes
+    // esto se detectaba SOLO en Lua con IsDisabledControlJustPressed, pero
+    // seguía sin funcionar (reportado varias veces) — se añade también aquí
+    // como camino independiente: con la NUI enfocada, el teclado SÍ llega
+    // de forma fiable a este listener (ya confirmado con Escape/Tab), así
+    // que no depende de esa detección a nivel de control del juego. Solo
+    // funciona en la pantalla de lista, no mientras se pide una cantidad
+    // (ahí 1-9 son dígitos normales del input).
+    if (!screens.qty.classList.contains("hidden")) return;
+    if (e.repeat) return;
+    const slot = Number(e.key);
+    if (Number.isInteger(slot) && slot >= 1 && slot <= 9) {
+      e.preventDefault();
+      debugLog(`tecla ${slot} detectada en JS -> drawHotbarSlot`);
+      drawHotbarSlot(slot);
+    }
   });
 
   window.addEventListener("message", (event) => {
     const data = event.data || {};
 
-    if (data.action === "hotbar:open") {
+    if (data.action === "open") {
+      currentData = data.data;
       currentSlots = data.slots || [];
+      activeTab = "items";
+      setActiveTab("items");
+      renderWeight();
       renderHotbar();
-      hotbarRoot.classList.remove("hidden");
+      showScreen("list");
+      root.classList.remove("hidden");
     }
 
-    if (data.action === "hotbar:close") {
-      hotbarRoot.classList.add("hidden");
+    if (data.action === "refresh") {
+      currentData = data.data;
+      currentSlots = data.slots || [];
+      renderHotbar();
+      // Si estaba en medio de pedir una cantidad, no lo interrumpimos con
+      // un re-render de la lista — solo se actualizan los datos de fondo.
+      if (screens.list.classList.contains("hidden")) return;
+      renderList();
+      renderWeight();
+    }
+
+    if (data.action === "close") {
+      root.classList.add("hidden");
+      pendingAction = null;
+      showScreen("list");
     }
   });
 })();
