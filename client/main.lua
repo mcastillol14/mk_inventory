@@ -329,11 +329,23 @@ RegisterKeyMapping("mk_inventory_toggle", "Abrir inventario", "keyboard", Config
 
 -- ESC le quita el foco a la NUI a nivel de motor sin avisar a nuestro
 -- callback "close" — mismo patrón ya usado en mk_admin/mk_shops. También
--- cierra si el jugador muere con el inventario abierto.
+-- cierra si el jugador muere con el inventario abierto. Cada condición
+-- tiene su propio log — el usuario reportó que el inventario se cerraba
+-- solo sin ninguna interacción visible, así que hace falta saber CUÁL de
+-- las tres lo está disparando en vez de un solo "cerrado" sin más contexto.
 CreateThread(function()
     while true do
-        if inventoryOpen and (IsPauseMenuActive() or ESX.PlayerData.dead or IsEntityDead(PlayerPedId())) then
-            closeInventory()
+        if inventoryOpen then
+            if IsPauseMenuActive() then
+                dbg("!!! cierre automático: IsPauseMenuActive() es true")
+                closeInventory()
+            elseif ESX.PlayerData.dead then
+                dbg("!!! cierre automático: ESX.PlayerData.dead es true")
+                closeInventory()
+            elseif IsEntityDead(PlayerPedId()) then
+                dbg("!!! cierre automático: IsEntityDead(ped) es true")
+                closeInventory()
+            end
         end
 
         Wait(inventoryOpen and 0 or 500)
@@ -343,12 +355,10 @@ end)
 -- SetNuiFocus NO desactiva los controles nativos de selección de arma por
 -- número (son controles de juego, no de teclado "crudo") — sin esto, con
 -- el inventario abierto, pulsar 1-9 sacaba a la vez el arma correspondiente
--- del menú nativo de GTA por debajo del nuestro. El TAB nativo (control 37,
--- INPUT_SELECT_WEAPON) abre además la ruleta normal del juego por debajo de
--- la nuestra — BlockWeaponWheelThisFrame() la bloquea (en su propio hilo,
--- más abajo, SIEMPRE activo).
+-- del menú nativo de GTA por debajo del nuestro.
 --
--- Índice = número de tecla física (1-9); valor = control INPUT_SELECT_WEAPON_*
+-- Índice = número de tecla física (1-9, la fila de arriba del teclado, NO
+-- el numpad); valor = control INPUT_SELECT_WEAPON_*
 -- que GTA tiene atado a esa tecla por defecto — verificado contra
 -- docs.fivem.net/docs/game-references/controls (el orden NO es
 -- 157,158,159... correlativo con las teclas).
@@ -381,10 +391,32 @@ local function hotbarDrawSlot(slot, origin)
     closeInventory()
 end
 
--- BlockWeaponWheelThisFrame() SIEMPRE (no solo con inventoryOpen): solo
--- evita que aparezca la ruleta NATIVA al mantener pulsado Tab — ver nota
--- extensa de por qué esto es seguro dejarlo siempre activo en
--- fivem-lecciones, lección 2026-08-11 sobre mk_weaponwheel.
+-- La ruleta nativa de GTA seguía apareciendo pese a BlockWeaponWheelThisFrame()
+-- en bucle — confirmado por la comunidad de Cfx.re que ese native "no
+-- funciona de forma fiable llamado en bucle cada frame" (foro cfx.re, hilo
+-- "Where do i disable the weapon wheel"). La forma fiable es una bandera
+-- del PED, no un native que hay que repetir cada frame:
+-- SetPedConfigFlag(ped, 48, true) desactiva la ruleta nativa (y el cambio
+-- de arma con la rueda del ratón) a nivel de ped — el único cuidado real es
+-- reaplicarla si el ped cambia (respawn, selector de personaje, modelo
+-- nuevo), por eso se repite cada 2s en vez de una sola vez al cargar.
+-- OJO ya verificado en otro sitio: DisableControlAction(0, 37, true) (el
+-- control nativo de "mantener Tab") NO se usa aquí a propósito — bloquea
+-- también SetCurrentPedWeapon, que es justo lo que este resource necesita
+-- para sacar armas desde las casillas.
+CreateThread(function()
+    while true do
+        local ped = PlayerPedId()
+        if ped and ped ~= 0 then
+            SetPedConfigFlag(ped, 48, true)
+        end
+        Wait(2000)
+    end
+end)
+
+-- BlockWeaponWheelThisFrame() se deja también, en su propio hilo SIEMPRE
+-- activo, como segunda capa — no hace daño tenerlo aunque SetPedConfigFlag
+-- sea el que de verdad hace el trabajo.
 CreateThread(function()
     while true do
         BlockWeaponWheelThisFrame()

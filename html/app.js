@@ -392,6 +392,13 @@
   document.addEventListener("keydown", (e) => {
     if (root.classList.contains("hidden")) return;
 
+    // Log de CUALQUIER tecla mientras el panel está abierto, antes de
+    // filtrar nada — para saber si el teclado llega aquí siquiera.
+    // e.code distingue la fila de arriba (Digit1..Digit9) del numpad
+    // (Numpad1..Numpad9) sin depender del layout de teclado, así no hay
+    // duda de cuál de las dos se está pulsando de verdad.
+    debugLog(`keydown en el panel: key="${e.key}" code="${e.code}" repeat=${e.repeat}`);
+
     if (e.key === "Escape") {
       e.preventDefault();
 
@@ -410,21 +417,25 @@
       return;
     }
 
-    // 1-9 para sacar arma/usar item de la casilla correspondiente. Antes
-    // esto se detectaba SOLO en Lua con IsDisabledControlJustPressed, pero
-    // seguía sin funcionar (reportado varias veces) — se añade también aquí
-    // como camino independiente: con la NUI enfocada, el teclado SÍ llega
-    // de forma fiable a este listener (ya confirmado con Escape/Tab), así
-    // que no depende de esa detección a nivel de control del juego. Solo
-    // funciona en la pantalla de lista, no mientras se pide una cantidad
-    // (ahí 1-9 son dígitos normales del input).
+    // 1-9 de la fila de arriba del teclado (NO el numpad) para sacar
+    // arma/usar item de la casilla correspondiente. Antes esto se
+    // detectaba SOLO en Lua con IsDisabledControlJustPressed, pero seguía
+    // sin funcionar — se añade también aquí como camino independiente.
+    // Solo funciona en la pantalla de lista, no mientras se pide una
+    // cantidad (ahí 1-9 son dígitos normales del input).
     if (!screens.qty.classList.contains("hidden")) return;
     if (e.repeat) return;
-    const slot = Number(e.key);
-    if (Number.isInteger(slot) && slot >= 1 && slot <= 9) {
+
+    const digitMatch = /^Digit([1-9])$/.exec(e.code);
+    if (digitMatch) {
+      const slot = Number(digitMatch[1]);
       e.preventDefault();
-      debugLog(`tecla ${slot} detectada en JS -> drawHotbarSlot`);
+      debugLog(`tecla ${slot} de la fila de arriba detectada (code=${e.code}) -> drawHotbarSlot`);
       drawHotbarSlot(slot);
+    } else if (/^Numpad[1-9]$/.test(e.code)) {
+      // Se distingue a propósito y NO se actúa — el usuario pidió
+      // explícitamente que solo cuenten las teclas de la fila de arriba.
+      debugLog(`tecla ${e.code} del NUMPAD detectada pero ignorada (solo cuenta la fila de arriba)`);
     }
   });
 
