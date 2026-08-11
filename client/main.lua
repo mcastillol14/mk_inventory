@@ -142,6 +142,30 @@ local function hotbarBuildSlotsForNui()
     return slots
 end
 
+-- Volcado completo de las 9 casillas — pedido explícito del usuario para
+-- poder ver de un vistazo en F8 qué hay puesto en cada una al abrir.
+local function logHotbarState()
+    if not Config.Debug then return end
+
+    for i = 1, Config.HotbarSlots do
+        local e = hotbarOrder[i]
+        if not e then
+            dbg(("casilla %d: vacía"):format(i))
+        else
+            local resolved = hotbarResolveSlot(e)
+            if resolved then
+                if resolved.kind == "weapon" then
+                    dbg(("casilla %d: ARMA %s (%s), municion=%s"):format(i, resolved.name, resolved.label, tostring(resolved.ammo)))
+                else
+                    dbg(("casilla %d: ITEM %s (%s) x%s"):format(i, resolved.name, resolved.label, tostring(resolved.count)))
+                end
+            else
+                dbg(("casilla %d: guardaba %s/%s pero ya no se resuelve (perdido/gastado)"):format(i, e.kind, e.name))
+            end
+        end
+    end
+end
+
 -------------------------
 -- Construcción de datos de la lista completa --
 -------------------------
@@ -249,7 +273,7 @@ local function closeInventory()
     FreezeEntityPosition(PlayerPedId(), false)
     SetNuiFocus(false, false)
     SendNUIMessage({ action = "close" })
-    dbg("cerrado")
+    dbg("=== INVENTARIO CERRADO ===")
 end
 
 local function openInventory()
@@ -268,12 +292,15 @@ local function openInventory()
     SetNuiFocus(true, true)
     hotbarSync()
     SendNUIMessage({ action = "open", data = buildPayload(), slots = hotbarBuildSlotsForNui() })
-    dbg("abierto")
+    dbg("=== INVENTARIO ABIERTO — contenido de las 9 casillas ===")
+    logHotbarState()
 end
 
 local function refreshInventory()
     if not inventoryOpen then return end
     SendNUIMessage({ action = "refresh", data = buildPayload(), slots = hotbarBuildSlotsForNui() })
+    dbg("=== INVENTARIO REFRESCADO (algo cambió mientras estaba abierto) ===")
+    logHotbarState()
 end
 
 -- Pequeño debounce: si se machaca la tecla muy rápido (auto-repeat del
@@ -328,20 +355,27 @@ end)
 local HOTBAR_KEY_TO_CONTROL = { [1] = 157, [2] = 158, [3] = 160, [4] = 164, [5] = 165, [6] = 159, [7] = 161, [8] = 162, [9] = 163 }
 local HOTBAR_WEAPON_SELECT_CONTROLS = { 157, 158, 159, 160, 161, 162, 163, 164, 165 }
 
-local function hotbarDrawSlot(slot)
+-- origin: solo para el log, dice qué camino disparó esto (control nativo de
+-- juego vs. NUI/JS) — pedido explícito del usuario para saber si la tecla
+-- se detecta y, si se detecta, si de verdad saca el arma o usa el item.
+local function hotbarDrawSlot(slot, origin)
+    origin = origin or "?"
     local entry = hotbarOrder[slot]
     local resolved = entry and hotbarResolveSlot(entry)
+
     if not resolved then
-        dbg(("hotbarDrawSlot(%s): no hay nada resuelto para esa casilla (entry=%s)"):format(tostring(slot), entry and "existe pero hotbarResolveSlot devolvió nil" or "vacía"))
+        dbg(("[%s] casilla %s pulsada pero NO HACE NADA — %s"):format(
+            origin, tostring(slot),
+            entry and "tenía algo guardado pero ya no se resuelve (arma/item perdido)" or "está vacía"))
         return
     end
 
     if resolved.kind == "weapon" then
         SetCurrentPedWeapon(PlayerPedId(), joaat(resolved.name), true)
-        dbg(("hotbar: arma sacada: slot=%s arma=%s"):format(slot, resolved.name))
+        dbg(("[%s] casilla %s -> SACA EL ARMA %s (%s)"):format(origin, slot, resolved.name, resolved.label))
     else
         TriggerServerEvent("esx:useItem", resolved.name)
-        dbg(("hotbar: item usado: slot=%s item=%s"):format(slot, resolved.name))
+        dbg(("[%s] casilla %s -> CONSUME EL ITEM %s (%s)"):format(origin, slot, resolved.name, resolved.label))
     end
 
     closeInventory()
@@ -373,8 +407,8 @@ CreateThread(function()
 
             for slot, control in pairs(HOTBAR_KEY_TO_CONTROL) do
                 if IsDisabledControlJustPressed(0, control) then
-                    dbg(("hotbar: tecla %s detectada por control de juego (control %s) -> hotbarDrawSlot(%s)"):format(slot, control, slot))
-                    hotbarDrawSlot(slot)
+                    dbg(("[control-nativo] tecla %s detectada (control %s)"):format(slot, control))
+                    hotbarDrawSlot(slot, "control-nativo")
                 end
             end
 
@@ -387,7 +421,8 @@ end)
 
 RegisterNUICallback("mk_inventory:hotbarDraw", function(data, cb)
     local slot = tonumber(data.slot)
-    if slot then hotbarDrawSlot(slot) end
+    dbg(("[nui] mk_inventory:hotbarDraw recibido, slot=%s"):format(tostring(slot)))
+    if slot then hotbarDrawSlot(slot, "nui") end
     cb({ ok = true })
 end)
 
