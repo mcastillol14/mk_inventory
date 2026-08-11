@@ -272,16 +272,8 @@
   document.addEventListener("keydown", (e) => {
     if (root.classList.contains("hidden")) return;
 
-    // El hint dice "[F2 / ESC] Cerrar", pero el control de juego (F2) no
-    // llega mientras la NUI tiene el foco (SetNuiFocus true) — hay que
-    // capturarlo aquí igual que Tab en mk_weaponwheel. Con e.repeat: si el
-    // jugador mantiene F2 pulsado un instante de más (habito natural al
-    // soltar la tecla que lo abrió), el auto-repeat del SO no debe cerrarlo
-    // en bucle — mismo bug ya visto y arreglado con Tab (SKILL.md, lección
-    // 2026-08-11).
-    if (e.key === "Escape" || e.key === "F2") {
+    if (e.key === "Escape") {
       e.preventDefault();
-      if (e.key === "F2" && e.repeat) return;
 
       if (!screens.qty.classList.contains("hidden")) {
         pendingAction = null;
@@ -349,6 +341,18 @@
   function dbgHotbar(msg) {
     post("mk_inventory:hotbarDebug", { msg });
   }
+
+  // Único punto de entrada al panel completo ahora que no hay tecla F2
+  // propia — se pide desde dentro de la barra rápida, sin soltar el foco
+  // de la NUI (evita el parpadeo de cerrar-y-reabrir SetNuiFocus). Se oculta
+  // la barra rápida al momento (como closeHotbarLocal) en vez de esperar a
+  // que Lua mande "hotbar:close" — el mensaje "open" del panel completo
+  // llega enseguida de todas formas, pero así no hay un frame de las dos
+  // pantallas superpuestas.
+  el("btn-open-full").addEventListener("click", () => {
+    hotbarRoot.classList.add("hidden");
+    post("mk_inventory:hotbarOpenFull", {});
+  });
 
   function drawHotbarSlot(slot) {
     if (!currentSlots[slot - 1]) {

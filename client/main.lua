@@ -137,15 +137,9 @@ local function refreshInventory()
     SendNUIMessage({ action = "refresh", data = buildPayload() })
 end
 
-RegisterCommand("mk_inventory_toggle", function()
-    if inventoryOpen then
-        closeInventory()
-    else
-        openInventory()
-    end
-end, false)
-
-RegisterKeyMapping("mk_inventory_toggle", "Abrir inventario", "keyboard", Config.OpenKey)
+-- Sin tecla propia (F2 quitada a petición del usuario) — el panel completo
+-- solo se abre desde dentro de la barra rápida, ver
+-- "mk_inventory:hotbarOpenFull" más abajo, junto a la lógica del hotbar.
 
 -- ESC le quita el foco a la NUI a nivel de motor sin avisar a nuestro
 -- callback "close" — mismo patrón ya usado en mk_admin/mk_weaponwheel.
@@ -648,6 +642,23 @@ end)
 
 RegisterNUICallback("mk_inventory:hotbarClose", function(_, cb)
     closeHotbar()
+    cb({ ok = true })
+end)
+
+-- Único camino al panel completo (sin tecla F2 propia, quitada a petición
+-- del usuario) — pasa de la barra rápida al panel SIN soltar el foco de la
+-- NUI (openInventory ya hace su propio SetNuiFocus(true,true), que es
+-- idempotente si ya estaba puesto).
+RegisterNUICallback("mk_inventory:hotbarOpenFull", function(_, cb)
+    if not hotbarOpen then
+        cb({ ok = false })
+        return
+    end
+
+    hotbarOpen = false
+    FreezeEntityPosition(PlayerPedId(), false)
+    dbg("hotbar: abriendo panel completo")
+    openInventory()
     cb({ ok = true })
 end)
 

@@ -4,10 +4,9 @@ Config = {}
 -- del umbral de arrastre (18px) del hotbar ya funciona bien del todo.
 Config.Debug = true
 
--- Tecla que abre el panel completo. RegisterKeyMapping (no ESX.RegisterInput,
--- que no está verificado en este proyecto) — mismo patrón que ya usaba
--- mk_weaponwheel para Tab.
-Config.OpenKey = 'F2'
+-- Sin tecla propia para el panel completo (F2 quitada a petición del
+-- usuario) — solo se abre desde dentro de la barra rápida (Tab), ver
+-- Config.HotbarToggleKey más abajo.
 
 -- La distancia máxima para "dar" (armas/items/dinero) NO se duplica aquí:
 -- se relee en vivo de es_extended con ESX.GetConfig("DistanceGive") en

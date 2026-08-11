@@ -454,3 +454,21 @@ html, body {
   color: rgba(244, 241, 247, .55);
   text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
 }
+
+.wheel-full-btn {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+  cursor: pointer;
+  padding: 4px 10px;
+  border: 1px solid var(--c2);
+  border-radius: 999px;
+  transition: border-color .12s ease, color .12s ease, box-shadow .12s ease;
+}
+
+.wheel-full-btn:hover {
+  border-color: var(--c1);
+  color: var(--c1);
+  box-shadow: 0 0 12px -4px var(--c1);
+}
