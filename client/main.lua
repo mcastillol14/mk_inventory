@@ -327,6 +327,23 @@ end, false)
 
 RegisterKeyMapping("mk_inventory_toggle", "Abrir inventario", "keyboard", Config.HotbarToggleKey)
 
+-- Ahora que 1-9 tiene que funcionar con el inventario CERRADO, las
+-- casillas no pueden depender de haber abierto el panel una vez primero
+-- (hotbarSync() antes solo se llamaba dentro de openInventory()). Se
+-- sincroniza también al cargar el personaje y, por si el resource se
+-- reinicia con el personaje ya cargado (el caso más común mientras se
+-- prueba esto), en cuanto arranca el script si ESX.PlayerLoaded ya es true.
+AddEventHandler("esx:playerLoaded", function()
+    hotbarSync()
+    dbg("hotbar sincronizado tras cargar personaje (esx:playerLoaded)")
+end)
+
+CreateThread(function()
+    while not ESX.PlayerLoaded do Wait(200) end
+    hotbarSync()
+    dbg("hotbar sincronizado al arrancar el resource (ESX.PlayerLoaded ya era true)")
+end)
+
 -- ESC le quita el foco a la NUI a nivel de motor sin avisar a nuestro
 -- callback "close" — mismo patrón ya usado en mk_admin/mk_shops. También
 -- cierra si el jugador muere con el inventario abierto. Cada condición
@@ -424,30 +441,38 @@ CreateThread(function()
     end
 end)
 
--- Camino Lua (nativo) de detección de 1-9 — se deja activo por si en algún
--- setup SÍ llega de forma fiable, pero el jugador reportó varias veces que
--- esto solo no basta, así que app.js AHORA TAMBIÉN detecta 1-9 por su
--- cuenta con keydown normal (independiente de este camino, ver
--- RegisterNUICallback("mk_inventory:hotbarDraw", ...) más abajo — cualquiera
--- de los dos caminos llega a hotbarDrawSlot igual).
+-- 1-9 SIEMPRE activo, con el inventario abierto o cerrado — pedido
+-- explícito del usuario (sacar arma/usar item sin tener que abrir el
+-- panel, como una barra rápida real). Mientras el panel está cerrado, la
+-- NUI no tiene el foco y por tanto NO recibe teclado en absoluto (por eso
+-- el camino de app.js/e.code SOLO sirve con el panel abierto) — este es el
+-- ÚNICO camino posible para "inventario cerrado", así que se deja
+-- permanentemente encendido en vez de solo mientras inventoryOpen.
+-- DisableControlAction en 157-165 es SIEMPRE necesario aquí (no solo para
+-- evitar la ruleta, que ya la tapa SetPedConfigFlag — es para que GTA no
+-- cambie de arma por su cuenta con el sistema nativo cada vez que se
+-- pulsa una de estas teclas, ahora que son nuestras del todo).
+local hotbarNativeThreadStarted = false
+
 CreateThread(function()
+    if not hotbarNativeThreadStarted then
+        hotbarNativeThreadStarted = true
+        dbg("hilo de deteccion 1-9 por control nativo: arrancado (siempre activo, inventario abierto o cerrado)")
+    end
+
     while true do
-        if inventoryOpen then
-            for _, control in ipairs(HOTBAR_WEAPON_SELECT_CONTROLS) do
-                DisableControlAction(0, control, true)
-            end
-
-            for slot, control in pairs(HOTBAR_KEY_TO_CONTROL) do
-                if IsDisabledControlJustPressed(0, control) then
-                    dbg(("[control-nativo] tecla %s detectada (control %s)"):format(slot, control))
-                    hotbarDrawSlot(slot, "control-nativo")
-                end
-            end
-
-            Wait(0)
-        else
-            Wait(500)
+        for _, control in ipairs(HOTBAR_WEAPON_SELECT_CONTROLS) do
+            DisableControlAction(0, control, true)
         end
+
+        for slot, control in pairs(HOTBAR_KEY_TO_CONTROL) do
+            if IsDisabledControlJustPressed(0, control) then
+                dbg(("[control-nativo] tecla %s detectada (control %s), inventoryOpen=%s"):format(slot, control, tostring(inventoryOpen)))
+                hotbarDrawSlot(slot, "control-nativo")
+            end
+        end
+
+        Wait(0)
     end
 end)
 
