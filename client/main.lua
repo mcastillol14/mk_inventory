@@ -308,12 +308,23 @@ end
 local lastToggle = 0
 local TOGGLE_DEBOUNCE_MS = 200
 
-RegisterCommand("mk_inventory_toggle", function()
-    dbg("mk_inventory_toggle disparado (tecla " .. tostring(Config.HotbarToggleKey) .. " pulsada) — inventoryOpen actual: " .. tostring(inventoryOpen))
+-- Nombre de comando NUEVO a propósito ("mk_inventory_open", no
+-- "mk_inventory_toggle") — el nombre viejo se registró en su día con F2
+-- como tecla por defecto (versión v1 de este resource, antes de fusionar
+-- con la barra rápida). RegisterKeyMapping guarda la tecla real que usa
+-- cada jugador como un ajuste PERSONAL en su cliente de FiveM la primera
+-- vez que ve ese nombre de comando — cambiar `Config.HotbarToggleKey` en
+-- el código NO pisa esa personalización ya guardada, así que quien ya
+-- había abierto el inventario alguna vez con el nombre viejo seguía
+-- teniendo F2 guardado en su cliente pasara lo que pasara en el código.
+-- Con un nombre de comando que el cliente nunca ha visto, no hay ningún
+-- ajuste previo que pisar y usa directamente la tecla por defecto (Tab).
+RegisterCommand("mk_inventory_open", function()
+    dbg("mk_inventory_open disparado (tecla " .. tostring(Config.HotbarToggleKey) .. " pulsada) — inventoryOpen actual: " .. tostring(inventoryOpen))
 
     local now = GetGameTimer()
     if now - lastToggle < TOGGLE_DEBOUNCE_MS then
-        dbg("mk_inventory_toggle: ignorado por debounce")
+        dbg("mk_inventory_open: ignorado por debounce")
         return
     end
     lastToggle = now
@@ -325,7 +336,7 @@ RegisterCommand("mk_inventory_toggle", function()
     end
 end, false)
 
-RegisterKeyMapping("mk_inventory_toggle", "Abrir inventario", "keyboard", Config.HotbarToggleKey)
+RegisterKeyMapping("mk_inventory_open", "Abrir inventario", "keyboard", Config.HotbarToggleKey)
 
 -- Ahora que 1-9 tiene que funcionar con el inventario CERRADO, las
 -- casillas no pueden depender de haber abierto el panel una vez primero
@@ -398,8 +409,19 @@ local function hotbarDrawSlot(slot, origin)
     end
 
     if resolved.kind == "weapon" then
-        SetCurrentPedWeapon(PlayerPedId(), joaat(resolved.name), true)
-        dbg(("[%s] casilla %s -> SACA EL ARMA %s (%s)"):format(origin, slot, resolved.name, resolved.label))
+        local ped = PlayerPedId()
+        local weaponHash = joaat(resolved.name)
+
+        -- Si ya la tiene sacada, la misma casilla la enfunda en vez de
+        -- "sacarla" otra vez — pedido explícito del usuario, mismo botón
+        -- para ambas cosas.
+        if GetSelectedPedWeapon(ped) == weaponHash then
+            SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
+            dbg(("[%s] casilla %s -> GUARDA EL ARMA %s (ya la tenía sacada)"):format(origin, slot, resolved.name))
+        else
+            SetCurrentPedWeapon(ped, weaponHash, true)
+            dbg(("[%s] casilla %s -> SACA EL ARMA %s (%s)"):format(origin, slot, resolved.name, resolved.label))
+        end
     else
         TriggerServerEvent("esx:useItem", resolved.name)
         dbg(("[%s] casilla %s -> CONSUME EL ITEM %s (%s)"):format(origin, slot, resolved.name, resolved.label))
