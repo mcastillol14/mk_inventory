@@ -1,0 +1,456 @@
+:root {
+  --c1: #d2385c;
+  --c2: #925cb7;
+  --c3: #e83a24;
+  --c4: #bf3a83;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  color: #f4f1f7;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 5vw;
+  opacity: 1;
+  transition: opacity .15s ease;
+}
+
+#root.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.panel {
+  width: 380px;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Sin background solido ni blur — solo borde de color + glow, ver
+     SKILL.md (rechazado ya varias veces con panel negro solido). */
+  background: none;
+  border: 1px solid var(--c2);
+  box-shadow: 0 0 22px -6px var(--c2);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--c1);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, .85);
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, .14);
+}
+
+.screen.hidden { display: none; }
+
+/* --- peso --- */
+.weight-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weight-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(244, 241, 247, .75);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+}
+
+.weight-track {
+  height: 6px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.weight-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--c2);
+  transition: width .2s ease, background-color .2s ease;
+}
+
+.weight-fill.full {
+  background: var(--c3);
+}
+
+/* --- pestañas --- */
+.tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color .12s ease, box-shadow .12s ease, color .12s ease;
+}
+
+.tab:hover {
+  border-color: var(--c2);
+}
+
+.tab.active {
+  border-color: var(--c1);
+  color: var(--c1);
+  box-shadow: 0 0 14px -6px var(--c1);
+}
+
+/* --- lista de items --- */
+.item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.empty-hint {
+  font-size: 12px;
+  text-align: center;
+  padding: 18px 0;
+  color: rgba(244, 241, 247, .5);
+}
+
+.empty-hint.hidden { display: none; }
+
+.item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+
+.item-row:hover {
+  border-color: var(--c2);
+  box-shadow: 0 0 14px -6px var(--c2);
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.item-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-meta {
+  font-size: 10px;
+  color: rgba(244, 241, 247, .55);
+}
+
+.item-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.act-btn {
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color .12s ease, box-shadow .12s ease, color .12s ease;
+}
+
+.act-btn:hover {
+  box-shadow: 0 0 10px -3px currentColor;
+}
+
+.act-use { border-color: var(--c2); color: var(--c2); }
+.act-give { border-color: var(--c4); color: var(--c4); }
+.act-remove { border-color: var(--c3); color: var(--c3); }
+.act-ammo { border-color: var(--c1); color: var(--c1); }
+
+/* --- pantalla de cantidad --- */
+.row {
+  padding: 9px 4px;
+}
+
+.row.unselectable {
+  cursor: default;
+}
+
+.row-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+}
+
+.amount-input {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--c2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #f4f1f7;
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 6px;
+}
+
+.amount-input:focus {
+  outline: none;
+  border-color: var(--c1);
+  box-shadow: 0 0 14px -5px var(--c1);
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn {
+  flex: 1;
+  text-align: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+
+.btn:hover {
+  border-color: var(--c1);
+  box-shadow: 0 0 14px -5px var(--c1);
+}
+
+.btn-confirm {
+  border-color: var(--c4);
+  color: var(--c4);
+}
+
+.btn-error {
+  color: var(--c3);
+  border-color: var(--c3);
+}
+
+.panel-hint {
+  font-size: 10px;
+  color: rgba(244, 241, 247, .5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+}
+
+/* --- aviso flotante --- */
+.toast {
+  position: absolute;
+  bottom: 6vh;
+  right: 5vw;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--c3);
+  border-radius: 8px;
+  color: var(--c3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+  box-shadow: 0 0 16px -5px var(--c3);
+  background: none;
+  opacity: 1;
+  transition: opacity .25s ease;
+}
+
+.toast.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Barra rápida (Tab) — antes mk_weaponwheel/html/style.css, portado tal
+   cual salvo renombrar #root a #hotbar-root (el panel de arriba ya usa
+   #root para sí mismo, no pueden compartir id en la misma página).
+   ============================================================ */
+
+#hotbar-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Scrim de pantalla completa — con fondo transparente el selector se veía
+     mal encima de cualquier escena. rgba plano y sin blur (backdrop-filter
+     no es fiable en el CEF de FiveM). */
+  background: rgba(5, 3, 6, .45);
+  opacity: 1;
+  transition: opacity .2s ease;
+}
+
+#hotbar-root.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wheel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.wheel-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--c1);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, .85);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 86px);
+  grid-template-rows: repeat(3, 86px);
+  gap: 10px;
+}
+
+.cell {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .1s ease, opacity .15s ease;
+}
+
+.cell.filled {
+  border-color: var(--c2);
+  cursor: grab;
+}
+
+.cell.filled.item {
+  border-color: var(--c4);
+}
+
+.cell.filled:hover,
+.cell.dragover {
+  border-color: var(--c1);
+  box-shadow: 0 0 18px -4px var(--c1);
+  transform: scale(1.05);
+}
+
+.cell.dragging {
+  opacity: .35;
+}
+
+.cell-num {
+  position: absolute;
+  top: 4px;
+  left: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(244, 241, 247, .55);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+}
+
+.cell-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .8));
+  pointer-events: none;
+}
+
+/* los items no tienen icono en este proyecto (no hay assets), se muestra
+   su nombre en texto en vez de una imagen */
+.cell-icon-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 70px;
+  height: 32px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.15;
+  color: var(--c4);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.cell-label {
+  margin-top: 4px;
+  max-width: 76px;
+  padding: 0 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+  pointer-events: none;
+}
+
+.cell-ammo {
+  position: absolute;
+  bottom: 3px;
+  right: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--c4);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+  pointer-events: none;
+}
+
+.wheel-hint {
+  font-size: 10.5px;
+  color: rgba(244, 241, 247, .55);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+}

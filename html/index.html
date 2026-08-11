@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="style.css" />
+<title>mk_inventory</title>
+</head>
+<body>
+  <div id="root" class="hidden">
+    <div class="panel">
+      <div class="panel-title">Inventario</div>
+
+      <div id="screen-list" class="screen">
+        <div class="weight-row">
+          <span class="weight-label" id="weight-label">0 / 0 kg</span>
+          <div class="weight-track"><div class="weight-fill" id="weight-fill"></div></div>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" id="tab-items" data-tab="items">Items</div>
+          <div class="tab" id="tab-weapons" data-tab="weapons">Armas</div>
+          <div class="tab" id="tab-accounts" data-tab="accounts">Dinero</div>
+        </div>
+
+        <div class="item-list" id="item-list"></div>
+        <div class="empty-hint hidden" id="empty-hint">No hay nada aquí.</div>
+
+        <div class="panel-hint">[F2 / ESC] Cerrar</div>
+      </div>
+
+      <div id="screen-qty" class="screen hidden">
+        <div class="row unselectable">
+          <span class="row-title" id="qty-title">Cantidad</span>
+        </div>
+        <input class="amount-input" id="qty-input" type="number" min="1" step="1" inputmode="numeric" autocomplete="off" />
+        <div class="panel-hint" id="qty-hint"></div>
+        <div class="btn-row">
+          <div class="btn btn-confirm" id="btn-qty-confirm">Confirmar</div>
+          <div class="btn btn-error" id="btn-qty-cancel">Cancelar</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <!-- Barra rápida (Tab) — antes mk_weaponwheel, absorbida aquí. Contenedor
+       propio ("hotbar-root", no "root") para no chocar con el panel de
+       arriba: los dos pueden existir en la misma página sin pisarse. -->
+  <div id="hotbar-root" class="hidden">
+    <div class="wheel">
+      <div class="wheel-title">Barra rápida</div>
+      <div class="grid" id="hotbar-grid"></div>
+      <div class="wheel-hint">Clic o pulsa 1-9 para sacar/usar — arrastra para reordenar</div>
+    </div>
+  </div>
+
+<script src="app.js"></script>
+</body>
+</html>
